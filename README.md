@@ -60,7 +60,7 @@ PaperFit 把论文排版视为一个视觉闭环任务：先把 PDF 渲染成页
 
 ## 真实效果展示
 
-下面的案例来自 PaperFit 的真实排版修复效果展示。图片由 [images/case1.pdf](images/case1.pdf) 和 [images/case2.pdf](images/case2.pdf) 渲染生成。
+下面的案例来自 PaperFit 的真实排版修复效果展示。
 
 <p align="center">
   <a href="images/case1.pdf">
