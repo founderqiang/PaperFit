@@ -281,6 +281,21 @@ PaperFit 的自动修复必须保护学术内容和关键对象：
 
 相关协议见 [protocols/content-integrity-protection.md](protocols/content-integrity-protection.md)。
 
+---
+
+## 引用
+
+如有帮助，请引用：
+
+```bibtex
+@article{yu2026paperfit,
+  title={PaperFit: Vision-in-the-Loop Typesetting Optimization for Scientific Documents},
+  author={Yu, Bihui and Xu, Xinglong and Jiang, Junjie and Cheng, Jiabei and Jia, Caijun and Li, Siyuan and He, Conghui and Wei, Jingxuan and Tan, Cheng},
+  journal={arXiv preprint arXiv:2605.10341},
+  year={2026}
+}
+```
+
 ## 许可证
 
 MIT 许可证，见 [LICENSE](LICENSE)。
