@@ -8,6 +8,7 @@ controlled-copy protocol has already produced the expected runtime artifacts.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -83,6 +84,25 @@ AGENT_V1_CASE = {
     "family": "AAAI Agent V1",
     "copy": "AAAI/arXiv-2305.09480v5_agent_v1_copy_20260621",
     "main_tex_sha256": "5771485ad6f5beae3c583c68d80b80dee0f50f4a005a845d0e8f355f0208e2ee",
+}
+
+APPROVED_GATE_CASE = {
+    "family": "AAAI Approved Gate",
+    "copy": "AAAI/arXiv-2305.09480v5_approved_gate_copy_20260622_182253",
+    "run_result": "data/run_result_agent.json",
+    "status_view": "data/status_view_agent_approved_gate.json",
+    "rollback_report": "data/rollback_report_approved_gate.json",
+    "main_tex": "aaai24_antibody.tex",
+    "main_tex_sha256": "5771485ad6f5beae3c583c68d80b80dee0f50f4a005a845d0e8f355f0208e2ee",
+}
+
+HIGH_RISK_BLOCKED_CASE = {
+    "family": "High-Risk Approval Gate",
+    "copy": "approval_gate/high_risk_blocked_20260622",
+    "run_result": "data/run_result_high_risk_blocked.json",
+    "status_view": "data/status_view_high_risk_blocked.json",
+    "main_tex": "main.tex",
+    "main_tex_sha256": "62ad6cbb681c78ecf991844c1eecf4908028193de6071c7c5f8bb5aaebb77be5",
 }
 
 
@@ -163,6 +183,47 @@ def _lineage_has_action(lineage: Any, action_name: str) -> bool:
     return False
 
 
+def _main_tex_sha256(copy: Path, main_tex: str) -> Optional[str]:
+    path = copy / main_tex
+    if not path.is_file():
+        return None
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _risk_is_valid(risk: Any) -> bool:
+    if not isinstance(risk, dict):
+        return False
+    if risk.get("schema_version") != "1.0":
+        return False
+    if risk.get("risk_level") not in {"low", "medium", "high"}:
+        return False
+    if not isinstance(risk.get("operation"), str) or not risk.get("operation"):
+        return False
+    if not isinstance(risk.get("mutation_surface"), list) or not risk.get("mutation_surface"):
+        return False
+    if not isinstance(risk.get("requires_fresh_approval"), bool):
+        return False
+    return bool(risk.get("reason"))
+
+
+def _candidate_risk_checks(plan: Optional[Dict[str, Any]], family: str) -> List[Check]:
+    checks = [
+        _check(plan is not None, f"{family}: repair plan available for risk checks", "repair_plan.json"),
+    ]
+    if plan is None:
+        return checks
+    candidates = plan.get("candidates") or []
+    risks = [candidate.get("risk") for candidate in candidates if isinstance(candidate, dict)]
+    checks.extend(
+        [
+            _check(bool(candidates), f"{family}: repair plan has candidates", f"candidates={len(candidates)}"),
+            _check(len(risks) == len(candidates), f"{family}: all candidates carry risk", f"risk={len(risks)} candidates={len(candidates)}"),
+            _check(all(_risk_is_valid(risk) for risk in risks), f"{family}: candidate risks are valid", str(risks[:3])),
+        ]
+    )
+    return checks
+
+
 def _check_repair_loop_policy(policy: Any, family: str, *, dry_run: bool) -> List[Check]:
     checks: List[Check] = [
         _check(isinstance(policy, dict), f"{family}: repair loop policy exists", str(policy)),
@@ -196,6 +257,121 @@ def _check_repair_loop_policy(policy: Any, family: str, *, dry_run: bool) -> Lis
     return checks
 
 
+def check_approved_gate_case(case: Dict[str, str], benchmark_root: Path) -> List[Check]:
+    family = case["family"]
+    copy = _case_path(benchmark_root, case["copy"])
+    run_result_path = case["run_result"]
+    status_view_path = case["status_view"]
+    rollback_path = case["rollback_report"]
+    run_result = _load_json(copy / run_result_path)
+    status_view = _load_json(copy / status_view_path)
+    rollback = _load_json(copy / rollback_path)
+    repair_plan = _load_json(copy / "data" / "repair_plan.json")
+    checks: List[Check] = [
+        _check(run_result is not None, f"{family}: approved gate run result exists", str(copy / run_result_path)),
+        _check(status_view is not None, f"{family}: approved gate status-view exists", str(copy / status_view_path)),
+        _check(rollback is not None, f"{family}: approved gate rollback report exists", str(copy / rollback_path)),
+        _check(
+            _main_tex_sha256(copy, case["main_tex"]) == case["main_tex_sha256"],
+            f"{family}: approved gate copy rolled back to baseline hash",
+            f"sha256={_main_tex_sha256(copy, case['main_tex'])}",
+        ),
+    ]
+    checks.extend(_candidate_risk_checks(repair_plan, family))
+
+    if run_result is not None:
+        task = run_result.get("task") or {}
+        actions = run_result.get("runtime_actions") or {}
+        repair_action = actions.get("repair_plan_executor") or {}
+        gate = repair_action.get("approval_scope_gate") or {}
+        policy = run_result.get("repair_loop_policy") or {}
+        readiness_checks = ((policy.get("second_round_apply_readiness") or {}).get("checks") or {})
+        checks.extend(
+            [
+                _check(task.get("dry_run_source_mutation") is False, f"{family}: approved run is non-dry", f"dry_run={task.get('dry_run_source_mutation')}"),
+                _check((run_result.get("approval") or {}).get("status") == "approved_and_executed", f"{family}: approved run executed", str(run_result.get("approval"))),
+                _check(gate.get("status") == "pass", f"{family}: candidate approval gate passes", str(gate)),
+                _check(int(gate.get("selected_candidate_count") or 0) == 1, f"{family}: candidate gate selected one candidate", f"selected={gate.get('selected_candidate_count')}"),
+                _check(not gate.get("blocked_candidates"), f"{family}: candidate gate has no blocked candidates", str(gate.get("blocked_candidates"))),
+                _check(((gate.get("candidate_risks") or [{}])[0].get("risk") or {}).get("risk_level") == "medium", f"{family}: selected candidate is medium risk", str(gate.get("candidate_risks"))),
+                _check(((gate.get("candidate_risks") or [{}])[0].get("risk") or {}).get("operation") == "layout_macros", f"{family}: selected candidate operation is scoped", str(gate.get("candidate_risks"))),
+                _check(int(repair_action.get("applied_count") or 0) > 0, f"{family}: approved gate applied bounded batch", f"applied={repair_action.get('applied_count')}"),
+                _check(_freshness_status(run_result) == "pass", f"{family}: approved gate freshness pass", f"freshness={_freshness_status(run_result)}"),
+                _check(policy.get("execution_mode") == "report_only", f"{family}: approved gate remains report-only", f"mode={policy.get('execution_mode')}"),
+                _check(policy.get("next_round_allowed") is False, f"{family}: approved gate does not auto-continue", f"next={policy.get('next_round_allowed')}"),
+                _check(readiness_checks.get("candidate_approval_scope_gate_pass") is True, f"{family}: readiness records gate pass", str(readiness_checks)),
+                _check(readiness_checks.get("runtime_execution_mode_can_auto_apply") is False, f"{family}: second-round auto apply disabled", str(readiness_checks)),
+            ]
+        )
+    if status_view is not None:
+        checks.extend(
+            [
+                _check(status_view.get("run_result_path") == run_result_path, f"{family}: status-view selects approved result", f"run_result_path={status_view.get('run_result_path')}"),
+                _check((status_view.get("approval") or {}).get("status") == "approved_and_executed", f"{family}: status-view reports approved execution", str(status_view.get("approval"))),
+                _check(((status_view.get("repair_loop_policy") or {}).get("candidate_approval_scope_gate") or {}).get("status") == "pass", f"{family}: status-view exposes gate pass", str((status_view.get("repair_loop_policy") or {}).get("candidate_approval_scope_gate"))),
+            ]
+        )
+    if rollback is not None:
+        checks.append(_check(_all_restored(rollback), f"{family}: approved gate rollback restored tracked files", "all restored"))
+    return checks
+
+
+def check_high_risk_blocked_case(case: Dict[str, str], benchmark_root: Path) -> List[Check]:
+    family = case["family"]
+    copy = _case_path(benchmark_root, case["copy"])
+    run_result_path = case["run_result"]
+    status_view_path = case["status_view"]
+    run_result = _load_json(copy / run_result_path)
+    status_view = _load_json(copy / status_view_path)
+    repair_plan = _load_json(copy / "data" / "repair_plan.json")
+    checks: List[Check] = [
+        _check(run_result is not None, f"{family}: blocked run result exists", str(copy / run_result_path)),
+        _check(status_view is not None, f"{family}: blocked status-view exists", str(copy / status_view_path)),
+        _check(
+            _main_tex_sha256(copy, case["main_tex"]) == case["main_tex_sha256"],
+            f"{family}: blocked gate leaves main tex unchanged",
+            f"sha256={_main_tex_sha256(copy, case['main_tex'])}",
+        ),
+    ]
+    checks.extend(_candidate_risk_checks(repair_plan, family))
+
+    if run_result is not None:
+        actions = run_result.get("runtime_actions") or {}
+        repair_action = actions.get("repair_plan_executor") or {}
+        gate = repair_action.get("approval_scope_gate") or {}
+        blocked = (gate.get("blocked_candidates") or [{}])[0]
+        blocked_risk = blocked.get("risk") or {}
+        policy = run_result.get("repair_loop_policy") or {}
+        readiness_checks = ((policy.get("second_round_apply_readiness") or {}).get("checks") or {})
+        checks.extend(
+            [
+                _check(run_result.get("status") == "blocked", f"{family}: run is blocked", f"status={run_result.get('status')}"),
+                _check(run_result.get("gatekeeper_decision") == "BLOCKED", f"{family}: gatekeeper decision is BLOCKED", f"decision={run_result.get('gatekeeper_decision')}"),
+                _check((run_result.get("failure") or {}).get("failure_type") == "approval_scope_blocked", f"{family}: failure type is approval scope blocked", str(run_result.get("failure"))),
+                _check(repair_action.get("skipped") is True, f"{family}: repair executor skipped", str(repair_action)),
+                _check(repair_action.get("reason") == "approval_scope_blocked", f"{family}: repair skip reason is approval scope blocked", f"reason={repair_action.get('reason')}"),
+                _check(gate.get("status") == "blocked", f"{family}: candidate gate blocks selected candidate", str(gate)),
+                _check(blocked_risk.get("risk_level") == "high", f"{family}: blocked candidate is high risk", str(blocked_risk)),
+                _check(blocked_risk.get("operation") == "float_movement_across_section_boundary", f"{family}: blocked operation needs fresh approval", str(blocked_risk)),
+                _check("source_mutation_integrity" not in actions, f"{family}: mutation integrity action not run after block", str(actions.keys())),
+                _check("post_repair_observe" not in actions, f"{family}: post-repair observe not run after block", str(actions.keys())),
+                _check((run_result.get("approval") or {}).get("status") == "approval_required", f"{family}: blocked run requires approval", str(run_result.get("approval"))),
+                _check(policy.get("stop_condition") == "approval_scope_blocked", f"{family}: policy stop condition is scope blocked", str(policy)),
+                _check(readiness_checks.get("candidate_approval_scope_gate_pass") is False, f"{family}: readiness records gate failure", str(readiness_checks)),
+                _check(_freshness_status(run_result) == "pass", f"{family}: blocked fixture freshness pass", f"freshness={_freshness_status(run_result)}"),
+            ]
+        )
+    if status_view is not None:
+        checks.extend(
+            [
+                _check(status_view.get("run_result_path") == run_result_path, f"{family}: status-view selects blocked result", f"run_result_path={status_view.get('run_result_path')}"),
+                _check((status_view.get("approval") or {}).get("status") == "approval_required", f"{family}: status-view reports approval required", str(status_view.get("approval"))),
+                _check(((status_view.get("repair_loop_policy") or {}).get("candidate_approval_scope_gate") or {}).get("status") == "blocked", f"{family}: status-view exposes gate block", str((status_view.get("repair_loop_policy") or {}).get("candidate_approval_scope_gate"))),
+            ]
+        )
+    return checks
+
+
 def check_agent_v1_case(case: Dict[str, str], benchmark_root: Path) -> List[Check]:
     family = case["family"]
     copy = _case_path(benchmark_root, case["copy"])
@@ -204,12 +380,14 @@ def check_agent_v1_case(case: Dict[str, str], benchmark_root: Path) -> List[Chec
     agent_report = _load_json(copy / "data" / "agent_report.json")
     status_view = _load_json(copy / "data" / "status_view_agent.json")
     status_query = _load_json(copy / "data" / "status_query_report.json")
+    repair_plan = _load_json(copy / "data" / "repair_plan.json")
     checks: List[Check] = [
         _check(run_result is not None, f"{family}: run-agent result exists", str(copy / "data" / "run_result_agent.json")),
         _check(agent_report is not None, f"{family}: agent report exists", str(copy / "data" / "agent_report.json")),
         _check(status_view is not None, f"{family}: status-view agent evidence exists", str(copy / "data" / "status_view_agent.json")),
         _check(status_query is not None, f"{family}: status-query report exists", str(copy / "data" / "status_query_report.json")),
     ]
+    checks.extend(_candidate_risk_checks(repair_plan, family))
 
     run_id = None
     if run_result is not None:
@@ -401,6 +579,8 @@ def run_checks(benchmark_root: Path) -> Dict[str, Any]:
     for case in BENCHMARK_CASES:
         checks.extend(check_dry_run_case(case, benchmark_root))
     checks.extend(check_agent_v1_case(AGENT_V1_CASE, benchmark_root))
+    checks.extend(check_approved_gate_case(APPROVED_GATE_CASE, benchmark_root))
+    checks.extend(check_high_risk_blocked_case(HIGH_RISK_BLOCKED_CASE, benchmark_root))
     checks.extend(check_stale_plan_case(STALE_PLAN_CASE, benchmark_root))
     for case in NONDRY_CASES:
         checks.extend(check_nondry_case(case, benchmark_root))
