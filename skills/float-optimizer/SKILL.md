@@ -147,6 +147,13 @@ paperfit run scripts/extract_crossrefs.py main.tex --output data/crossrefs.json
 **问题特征**：
 - 过窄：图表宽度明显小于栏宽，两侧留白过多。
 - 超宽：图表超出栏宽，内容被截断或溢出到页边。
+- 机器证据：`visual_signal_report.json` 可能包含 `source=pymupdf_native` 的 B2 finding，字段包括 `metrics.subtype=underfilled_width|overflow_width`、`width_context=column|page`、`object_width_ratio`、`object_width_page_ratio`、`overflow_pt` 和 `pdf_bbox`。
+
+**证据解释**：
+
+- `width_context=column` 表示对象应按栏宽评估；`object_width_ratio < 0.85` 通常是过窄候选。
+- `metrics.subtype=overflow_width` 或 `overflow_pt > 0` 表示对象在 PDF 原生坐标中超过页面或栏边界，应优先处理。
+- PyMuPDF native geometry 是辅助信号，必须与渲染页图位置和源码 label/crossrefs 对齐后再修改。
 
 **修复策略（按优先级）**：
 
@@ -193,6 +200,12 @@ paperfit run scripts/extract_crossrefs.py main.tex --output data/crossrefs.json
    ```latex
    \includegraphics[width=\linewidth,height=0.3\textheight,keepaspectratio]{figure.pdf}
    ```
+
+**执行边界**：
+
+- 优先修复有 label/crossrefs 对齐的 B2 对象；没有可靠源码锚点时只报告候选，不做盲改。
+- 对 source-changing run，默认只生成 repair plan；只有显式 `--apply` 或宿主等价授权时才执行源码写回。
+- 不使用 `\resizebox`/`\scalebox` 作为宽度问题的默认修复；表格优先使用 `tabularx`、`table*` 或宽度感知列格式。
 
 ---
 

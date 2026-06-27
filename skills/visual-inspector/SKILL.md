@@ -21,6 +21,7 @@
 | DPI 参数 | 配置或调用方指定 | ✅ | 渲染分辨率，默认 220 DPI |
 | 页码范围 | 调用方指定 | ⚠️ | 若为空，渲染全部页面 |
 | 局部裁剪参数 | 调用方指定 | ⚠️ | 如 `{page: 5, bbox: [x,y,w,h]}`，用于表格/公式局部复查 |
+| PDF native geometry | 编译输出 PDF | ⚠️ | 若安装 PyMuPDF，可作为 B2 宽度和 D1 overflow 的辅助机器信号 |
 
 ## 输出规范
 
@@ -77,6 +78,11 @@ brew install poppler
 
 3. 若依赖缺失，报告错误并终止，由上层 Agent 提示用户安装。
 
+可选 native geometry 检测依赖：
+
+- `PyMuPDF`（Python import 名为 `fitz`）：用于读取 PDF 原生 object/text bbox，辅助检测 B2 宽度不足/超宽与 D1 native overflow。
+- 该信号不是页图验收替代品；即使 PyMuPDF 不可用，也应继续渲染页图并完成视觉检查。
+
 ### 第二步：执行渲染
 
 **禁止**在用户 LaTeX 项目里假设存在 `scripts/render_pages.py`。页图渲染由 **PaperFit npm/CLI 包**提供，在论文项目根目录执行：
@@ -122,6 +128,23 @@ for i, page in enumerate(pages, start=1):
 | 整页常规检查 | 180-220 | 平衡清晰度与文件大小 |
 | 表格/公式细节复查 | 260-320 | 需清晰辨认小字号或密集内容 |
 | 局部裁剪复查 | 320 | 聚焦特定区域，可接受较大文件 |
+
+#### PyMuPDF native geometry（可选）
+
+当 runtime 已记录编译 PDF 路径时，视觉聚合阶段可调用：
+
+```bash
+paperfit run scripts/visual_signal_aggregator.py data/pages --output data/visual_signal_report.json --pdf main.pdf
+```
+
+该报告会把 native PDF bbox 映射到渲染页图坐标，并输出：
+
+- `source=pymupdf_native`
+- B2 `subtype=underfilled_width` 或 `subtype=overflow_width`
+- `width_context`、`object_width_ratio`、`object_width_page_ratio`
+- D1 native overflow 的 `overflow_pt` 与 `pdf_bbox`
+
+使用这些信号时必须回看对应 `page_*.png`；不要只凭 PDF 文本/对象抽取宣称视觉修复成功。
 
 ### 第三步：局部区域裁剪（可选）
 
@@ -186,6 +209,7 @@ cropped.save(f"{output_dir}/page_005_table2.png")
 ### 表格专项
 
 - [ ] 表格宽度是否匹配栏宽？有无超宽或过窄？
+- [ ] 若 visual signal 中有 `source=pymupdf_native` 的 B2 报告，对照页图检查 `width_context`、`object_width_ratio` 和 bbox 是否合理。
 - [ ] 列宽分配是否均衡？有无单列过宽挤压其他列？
 - [ ] 表格字号是否与全篇其他表格一致？
 - [ ] 表格线是否清晰？推荐使用 `booktabs` 风格。
@@ -194,6 +218,7 @@ cropped.save(f"{output_dir}/page_005_table2.png")
 
 - [ ] 图片是否清晰，分辨率足够？
 - [ ] 图片宽度是否充分利用栏宽？
+- [ ] B2 宽度问题应区分单栏对象与跨栏对象；PyMuPDF 的 `width_context=column|page` 只能作为辅助判断。
 - [ ] 图片标题是否在图片下方（表格标题在上方）？
 - [ ] 图片中的文字（坐标轴标签、图例）是否可读？
 

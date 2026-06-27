@@ -11,6 +11,8 @@
 
 可执行脚本在 **`paperfit-cli` 包内**；在**论文项目根目录**执行：`paperfit render …`、`paperfit run scripts/parse_log.py …`；勿假设项目内有 `scripts/render_pages.py`。兜底：`npx paperfit-cli …`、`python3 "$(paperfit root)/scripts/…"`。
 
+视觉聚合器在有编译 PDF 路径时会把 PDF 传给 `visual_signal_aggregator.py --pdf <pdf>`，用于 PyMuPDF native geometry 检测。该信号可发现 B2 宽度不足/超宽和 D1 native overflow，但只作为页图诊断的补充；最终视觉判断仍必须查看渲染页图。
+
 ## `column_void` Schema 提示
 
 若本轮还会读取 A5 机检结果，注意：
@@ -34,12 +36,14 @@
 
 1. 编译 PDF（如需要）→ 在论文根目录执行 **`paperfit render <输出pdf路径> --output data/pages`**（脚本在全局安装的 `paperfit-cli` 包内，勿使用用户项目下的 `scripts/render_pages.py`）
 2. 规则引擎检查编译日志
-3. 排版侦探基于 VTO 分类体系识别缺陷
-4. 输出结构化诊断报告
+3. 聚合页图、日志、crossrefs、OpenCV A5 和可选 PyMuPDF native geometry 信号
+4. 排版侦探基于 VTO 分类体系识别缺陷
+5. 输出结构化诊断报告
 
 ## 输出
 
 - 缺陷列表（类别、页码、严重等级、描述）
+- B2 宽度检测若来自 PyMuPDF，应保留 `source=pymupdf_native`、`width_context`、`object_width_ratio` 或 `overflow_pt`
 - 修复建议
 - 不修改任何源文件
 
