@@ -2,7 +2,7 @@
 
 ## 命令描述
 
-显示当前 PaperFit 任务的运行状态，包括迭代轮次、缺陷消除进度、视觉优先级、修复计划摘要及下一步行动。适用于长时间运行任务的中途检查或恢复任务前确认上下文。
+显示当前 PaperFit 任务的运行状态与证据链。状态应来自 runtime status contract，而不是各宿主自行解释 legacy `state.json` 字段。适用于长时间运行任务的中途检查或恢复任务前确认上下文。
 
 ## 触发词
 
@@ -10,18 +10,20 @@
 
 ## 行为
 
-1. **读取 `data/state.json`**（若存在）。
+1. **读取 runtime status**：
+   - 优先选择最近的适用 `RunResult`，如 `data/run_result_agent.json`、`data/run_result_full_vto_nondry.json`、`data/run_result_full_vto_dry_run.json` 或 `data/run_result_check_visual.json`。
+   - 同时读取 `data/state.json` 作为 mutable projection。
+   - 与 `paperfit status-view` / `paperfit status` 使用同一状态合同。
 2. **格式化输出**：
    - 项目主文件
-   - 任务类型与约束
-   - 当前轮次 / 最大轮次
-   - `compile_success` / `page_images_rendered`
-   - 缺陷摘要（按类别统计）
-   - `visual_signals_summary.priority_pages` / `priority_objects`
-   - `repair_plan_summary` / `repair_execution_summary`
-   - 最近一次门禁决策及下一步行动
-   - `artifacts.rule_report` / `crossrefs_report` / `visual_signal_report` / `repair_plan` / `repair_execution_report` / `semantic_patch_report` / `gatekeeper_decision`
-3. **若任务已完成**：显示最终门禁状态与相关报告路径。
+   - 任务类型、运行状态、最近门禁决策
+   - selected `RunResult` 路径与 runtime event 摘要
+   - artifact freshness 与 terminal success guard
+   - 缺陷摘要
+   - repair plan / repair execution / approval 摘要
+   - source-changing run 的 `repair_loop_policy`：stop condition、approval carry-forward、candidate approval gate、round artifact lineage、second-round readiness
+   - 相关报告路径与下一步行动
+3. **若任务已完成或被阻塞**：显示最终门禁状态、freshness/terminal guard 证据、approval/gate 阻塞原因和相关报告路径。
 
 ## 示例
 
@@ -31,4 +33,5 @@
 
 ## 调度映射
 
-- 不调用 Agent，直接读取 `state.json` 和诊断报告
+- 不调用修复 Agent，不触发 compile/render/repair。
+- 读取 runtime status contract；CLI 等价入口是 `paperfit status`，机器可读入口是 `paperfit status-view`。

@@ -9,6 +9,8 @@
 - `/paperfit` 自己就可以完成任务路由，不必强制用户再记忆 `/fix-layout` 等子命令
 - 如果用户说“实际有 5 个 table / figure”，这是事实校正，不是期望值
 - 内部 CLI、runtime、脚本是执行层，不是用户接口
+- Source-changing 任务默认 dry-run；只有用户显式授权 `--apply` 或等价自然语言许可时才执行源码写回
+- 多轮源码写回必须显式授权 `--apply --max-rounds N`，并且每一轮都要经过 runtime approval gate 与 freshness 检查
 
 ---
 
@@ -46,6 +48,13 @@
 - `undo_last_change`：回滚最近一次自动写回
 
 若用户意图不够明确，默认先做 `analyze_layout`，必要时补充画像与状态初始化。
+
+## Source-Changing 安全边界
+
+- 分析、编译、页图渲染、视觉诊断和 repair plan 生成可以自动执行。
+- 修改 `.tex` 源码必须有显式 apply 授权；没有授权时，应报告候选修复、risk、approval 状态和下一步建议。
+- `--apply` 只授权 bounded candidate batch；`--max-rounds N` 只在与 `--apply` 同时出现时允许多轮尝试。
+- 第二轮及以后必须由 runtime status 的 `repair_loop_policy.second_round_apply_readiness` 判定是否可继续，不能由宿主命令自行推断。
 
 ## 工具调用约定
 
@@ -126,6 +135,7 @@ paperfit run scripts/paperfit_portrait.py refresh
 - 若需要，先在内部执行画像构建/刷新
 - 然后直接路由到对应任务，不要求用户重新输入其它斜杠命令
 - 在输出中明确当前被路由到的任务类型
+- 对完整修复或长度调整，输出中需说明当前是 dry-run 计划、已 apply 的 bounded mutation，还是因 approval/freshness/gate 被阻塞
 
 ---
 

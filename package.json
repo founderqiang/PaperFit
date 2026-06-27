@@ -9,6 +9,7 @@
   },
   "scripts": {
     "verify": "npm run validate:config && npm run check:node && npm run check:py-warnings",
+    "verify:runtime-benchmarks": "python3 scripts/runtime_benchmark_evidence.py",
     "validate:config": ".venv/bin/python scripts/config_validator.py",
     "check:node": "node --check bin/paperfit.js",
     "check:py-warnings": ".venv/bin/python -W error scripts/check_python_warnings.py",

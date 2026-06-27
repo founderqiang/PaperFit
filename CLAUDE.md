@@ -90,6 +90,7 @@
 | 关键状态跃迁 | `paperfit runtime --state data/state.json <子命令> …` |
 | 状态 / 备份 | `paperfit run scripts/state_manager.py <子命令> …` |
 | 证据链收集 | `paperfit run scripts/evidence_collector.py …`（按脚本 `--help`） |
+| Runtime benchmark gate | `npm run verify:runtime-benchmarks`（只验证既有 evidence，不重跑 benchmark） |
 | Benchmark | `paperfit run scripts/inject_defects.py …` / `paperfit run scripts/benchmark_runner.py …` |
 | **A5 列空洞（OpenCV）** | `paperfit run scripts/detect_column_void.py data/pages --glob 'page_*.png' -o data/reports/column_void_r{N}.json` |
 | **A5 写入 state** | `paperfit run scripts/state_manager.py column-void data/reports/column_void_r{N}.json` |
@@ -98,6 +99,9 @@
 
 - 标准轮次优先使用 `paperfit runtime --state data/state.json run-round main.tex --template <TEMPLATE> --target-pages <N>`
 - 仅当需要拆步排障时，再退回 `start-round` / `mark-compile` / `mark-render` / `gatekeeper`
+- Source-changing 任务默认 dry-run；只有显式 `--apply` 或宿主等价授权时才允许写回源码。
+- `--apply --max-rounds N` 只表示用户允许最多 N 轮 bounded source mutation；每轮仍必须通过 approval carry-forward、artifact freshness、candidate approval gate 和 gatekeeper `CONTINUE` 检查。
+- 视觉聚合可使用 PyMuPDF native PDF geometry 作为 B2 宽度检测和 D1 overflow 的机器信号；它是页图/VLM 证据的补充，不能替代渲染页图验收。
 
 **兜底**（全局未装 `paperfit` 时）：`npx paperfit-cli render …`、`npx paperfit-cli run scripts/…`，或 `python3 "$(paperfit root)/scripts/…"`（须已能解析到包根）。
 

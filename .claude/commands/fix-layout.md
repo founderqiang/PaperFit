@@ -36,10 +36,16 @@
 
 ## 直接执行入口
 
-首选直接运行：
+首选直接运行。未显式授权源码修改时，这条路径保持 source mutation dry-run，只生成诊断、修复计划和审批/风险状态：
 
 ```bash
 paperfit runtime --state data/state.json run-round main.tex --template <TEMPLATE> --target-pages <N>
+```
+
+若用户明确要求执行源码写回，才附加 `--apply`。多轮自动写回必须同时显式给出 `--max-rounds N`，并且每一轮都要重新通过 approval carry-forward、artifact freshness、candidate approval gate 与 gatekeeper `CONTINUE`：
+
+```bash
+paperfit runtime --state data/state.json run-round main.tex --template <TEMPLATE> --target-pages <N> --apply --max-rounds 2
 ```
 
 若还未初始化，再先执行：
@@ -88,11 +94,12 @@ data["by_page"]
 2. 初始化或加载 `state.json`（优先使用 `paperfit runtime --state data/state.json init-task main.tex ...`；双栏论文补 `--column-type double`；若已由 `/paperfit` 写入栏型，以 `state.json` / 画像为准）
 3. 每轮优先执行 `paperfit runtime --state data/state.json run-round main.tex --template <TEMPLATE> --target-pages <N>`，统一完成轮次推进、日志解析、crossrefs 提取、页图检查、缺陷摘要推导与 gatekeeper 回写；若需拆步排障，再退回 `start-round` / `mark-compile` / `mark-render` / `gatekeeper`
 4. 若是**双栏任务**且本轮已生成页图，再执行 `detect_column_void` + `paperfit runtime --state data/state.json ingest-column-void data/reports/column_void_rN.json` 写入机检摘要
-5. 规则引擎检测编译日志错误
-6. 排版侦探基于 VTO 分类体系检测视觉缺陷（合并 `machine_signals` 与 VLM）
-7. 代码外科医生执行修复
-8. 重新编译 → 质量门禁验收（诊断报告用 `config/diagnostic_report.template.md`）
-9. 迭代至 DONE 或达到最大轮次
+5. 视觉聚合器在有 PDF 路径时可附加 PyMuPDF native geometry 信号，用于 B2 宽度不匹配和 D1 overflow 辅助检测；页图仍是验收主证据
+6. 规则引擎检测编译日志错误
+7. 排版侦探基于 VTO 分类体系检测视觉缺陷（合并 `machine_signals` 与 VLM）
+8. 代码外科医生执行修复；未授权 `--apply` 时只报告候选和 approval 状态
+9. 重新编译 → 质量门禁验收（诊断报告用 `config/diagnostic_report.template.md`）
+10. 迭代至 DONE 或达到 `--max-rounds`；第二轮及以后必须满足 runtime status 中的 `second_round_apply_readiness=ready`
 
 ## 错误回退
 
@@ -116,6 +123,7 @@ paperfit runtime --state data/state.json run-round main.tex --template <TEMPLATE
 - 每轮迭代前自动备份 `data/benchmarks/case` 目录
 - 更新 `data/state.json` 状态
 - 生成诊断报告 `diagnostic_report_round*.md`
+- Source-changing 运行必须在状态中暴露 `repair_loop_policy`，包括 approval carry-forward、candidate approval gate、round artifact lineage 和 second-round readiness。
 
 ## 调度
 

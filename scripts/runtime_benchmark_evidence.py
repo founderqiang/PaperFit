@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import os
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -118,7 +119,7 @@ def _load_json(path: Path) -> Optional[Dict[str, Any]]:
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
     return data if isinstance(data, dict) else None
 
@@ -188,6 +189,26 @@ def _main_tex_sha256(copy: Path, main_tex: str) -> Optional[str]:
     if not path.is_file():
         return None
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _human_status_output(copy: Path, run_result_path: str) -> Optional[str]:
+    cli = Path(__file__).resolve().parents[1] / "bin" / "paperfit.js"
+    if not cli.is_file() or not (copy / "data" / "state.json").is_file():
+        return None
+    try:
+        result = subprocess.run(
+            ["node", str(cli), "status", "--run-result", run_result_path],
+            cwd=copy,
+            text=True,
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout
 
 
 def _risk_is_valid(risk: Any) -> bool:
@@ -267,10 +288,12 @@ def check_approved_gate_case(case: Dict[str, str], benchmark_root: Path) -> List
     status_view = _load_json(copy / status_view_path)
     rollback = _load_json(copy / rollback_path)
     repair_plan = _load_json(copy / "data" / "repair_plan.json")
+    human_status = _human_status_output(copy, run_result_path)
     checks: List[Check] = [
         _check(run_result is not None, f"{family}: approved gate run result exists", str(copy / run_result_path)),
         _check(status_view is not None, f"{family}: approved gate status-view exists", str(copy / status_view_path)),
         _check(rollback is not None, f"{family}: approved gate rollback report exists", str(copy / rollback_path)),
+        _check(human_status is not None, f"{family}: human status renders approved result", "paperfit status --run-result"),
         _check(
             _main_tex_sha256(copy, case["main_tex"]) == case["main_tex_sha256"],
             f"{family}: approved gate copy rolled back to baseline hash",
@@ -311,6 +334,15 @@ def check_approved_gate_case(case: Dict[str, str], benchmark_root: Path) -> List
                 _check(((status_view.get("repair_loop_policy") or {}).get("candidate_approval_scope_gate") or {}).get("status") == "pass", f"{family}: status-view exposes gate pass", str((status_view.get("repair_loop_policy") or {}).get("candidate_approval_scope_gate"))),
             ]
         )
+    if human_status is not None:
+        checks.extend(
+            [
+                _check("Approval Carry-forward: pass" in human_status, f"{family}: human status shows carry-forward pass", "Approval Carry-forward: pass"),
+                _check("Candidate Gate: pass" in human_status, f"{family}: human status shows candidate gate pass", "Candidate Gate: pass"),
+                _check("Second Round Readiness: blocked" in human_status, f"{family}: human status shows second-round blocked", "Second Round Readiness: blocked"),
+                _check("runtime_execution_mode_can_auto_apply" in human_status, f"{family}: human status shows auto-apply disabled check", "runtime_execution_mode_can_auto_apply"),
+            ]
+        )
     if rollback is not None:
         checks.append(_check(_all_restored(rollback), f"{family}: approved gate rollback restored tracked files", "all restored"))
     return checks
@@ -324,9 +356,11 @@ def check_high_risk_blocked_case(case: Dict[str, str], benchmark_root: Path) -> 
     run_result = _load_json(copy / run_result_path)
     status_view = _load_json(copy / status_view_path)
     repair_plan = _load_json(copy / "data" / "repair_plan.json")
+    human_status = _human_status_output(copy, run_result_path)
     checks: List[Check] = [
         _check(run_result is not None, f"{family}: blocked run result exists", str(copy / run_result_path)),
         _check(status_view is not None, f"{family}: blocked status-view exists", str(copy / status_view_path)),
+        _check(human_status is not None, f"{family}: human status renders blocked result", "paperfit status --run-result"),
         _check(
             _main_tex_sha256(copy, case["main_tex"]) == case["main_tex_sha256"],
             f"{family}: blocked gate leaves main tex unchanged",
@@ -369,6 +403,16 @@ def check_high_risk_blocked_case(case: Dict[str, str], benchmark_root: Path) -> 
                 _check(((status_view.get("repair_loop_policy") or {}).get("candidate_approval_scope_gate") or {}).get("status") == "blocked", f"{family}: status-view exposes gate block", str((status_view.get("repair_loop_policy") or {}).get("candidate_approval_scope_gate"))),
             ]
         )
+    if human_status is not None:
+        checks.extend(
+            [
+                _check("Stop: approval_scope_blocked" in human_status, f"{family}: human status shows scope-block stop", "Stop: approval_scope_blocked"),
+                _check("Candidate Gate: blocked" in human_status, f"{family}: human status shows candidate gate block", "Candidate Gate: blocked"),
+                _check("Candidate Gate Reason: selected_candidate_exceeds_approval_scope" in human_status, f"{family}: human status shows candidate gate reason", "selected_candidate_exceeds_approval_scope"),
+                _check("Blocked Candidates: 1" in human_status, f"{family}: human status shows blocked candidate count", "Blocked Candidates: 1"),
+                _check("candidate_approval_scope_gate_pass" in human_status, f"{family}: human status shows gate readiness failure", "candidate_approval_scope_gate_pass"),
+            ]
+        )
     return checks
 
 
@@ -381,11 +425,13 @@ def check_agent_v1_case(case: Dict[str, str], benchmark_root: Path) -> List[Chec
     status_view = _load_json(copy / "data" / "status_view_agent.json")
     status_query = _load_json(copy / "data" / "status_query_report.json")
     repair_plan = _load_json(copy / "data" / "repair_plan.json")
+    human_status = _human_status_output(copy, "data/run_result_agent.json")
     checks: List[Check] = [
         _check(run_result is not None, f"{family}: run-agent result exists", str(copy / "data" / "run_result_agent.json")),
         _check(agent_report is not None, f"{family}: agent report exists", str(copy / "data" / "agent_report.json")),
         _check(status_view is not None, f"{family}: status-view agent evidence exists", str(copy / "data" / "status_view_agent.json")),
         _check(status_query is not None, f"{family}: status-query report exists", str(copy / "data" / "status_query_report.json")),
+        _check(human_status is not None, f"{family}: human status renders agent result", "paperfit status --run-result"),
     ]
     checks.extend(_candidate_risk_checks(repair_plan, family))
 
@@ -462,6 +508,16 @@ def check_agent_v1_case(case: Dict[str, str], benchmark_root: Path) -> List[Chec
                 _check(status_query_view.get("run_result_path") == "data/run_result_agent.json", f"{family}: status-query selects agent result", f"run_result_path={status_query_view.get('run_result_path')}"),
                 _check((status_query_view.get("artifact_freshness") or {}).get("status") == "pass", f"{family}: status-query freshness pass", str(status_query_view.get("artifact_freshness"))),
                 _check((status_query_view.get("approval") or {}).get("status") == "approval_required", f"{family}: status-query approval required", str(status_query_view.get("approval"))),
+            ]
+        )
+    if human_status is not None:
+        checks.extend(
+            [
+                _check("Status: approval_required" in human_status, f"{family}: human status shows approval required", "Status: approval_required"),
+                _check("Approval Carry-forward: pass" in human_status, f"{family}: human status shows carry-forward pass", "Approval Carry-forward: pass"),
+                _check("Second Round Readiness: blocked" in human_status, f"{family}: human status shows second-round blocked", "Second Round Readiness: blocked"),
+                _check("dry_run_source_mutation" in human_status, f"{family}: human status shows dry-run reason", "dry_run_source_mutation"),
+                _check("runtime_execution_mode_can_auto_apply" in human_status, f"{family}: human status shows auto-apply disabled check", "runtime_execution_mode_can_auto_apply"),
             ]
         )
     return checks
@@ -573,17 +629,7 @@ def check_nondry_case(case: Dict[str, str], benchmark_root: Path) -> List[Check]
     return checks
 
 
-def run_checks(benchmark_root: Path) -> Dict[str, Any]:
-    checks: List[Check] = []
-    checks.append(_check(benchmark_root.is_dir(), "benchmark root exists", str(benchmark_root)))
-    for case in BENCHMARK_CASES:
-        checks.extend(check_dry_run_case(case, benchmark_root))
-    checks.extend(check_agent_v1_case(AGENT_V1_CASE, benchmark_root))
-    checks.extend(check_approved_gate_case(APPROVED_GATE_CASE, benchmark_root))
-    checks.extend(check_high_risk_blocked_case(HIGH_RISK_BLOCKED_CASE, benchmark_root))
-    checks.extend(check_stale_plan_case(STALE_PLAN_CASE, benchmark_root))
-    for case in NONDRY_CASES:
-        checks.extend(check_nondry_case(case, benchmark_root))
+def _build_report(benchmark_root: Path, checks: List[Check]) -> Dict[str, Any]:
     failed = [check for check in checks if not check.passed]
     return {
         "schema_version": "1.0",
@@ -595,6 +641,38 @@ def run_checks(benchmark_root: Path) -> Dict[str, Any]:
     }
 
 
+def run_checks(benchmark_root: Path) -> Dict[str, Any]:
+    checks: List[Check] = []
+    checks.append(_check(benchmark_root.is_dir(), "benchmark root exists", str(benchmark_root)))
+    if not benchmark_root.is_dir():
+        return _build_report(benchmark_root, checks)
+    for case in BENCHMARK_CASES:
+        checks.extend(check_dry_run_case(case, benchmark_root))
+    checks.extend(check_agent_v1_case(AGENT_V1_CASE, benchmark_root))
+    checks.extend(check_approved_gate_case(APPROVED_GATE_CASE, benchmark_root))
+    checks.extend(check_high_risk_blocked_case(HIGH_RISK_BLOCKED_CASE, benchmark_root))
+    checks.extend(check_stale_plan_case(STALE_PLAN_CASE, benchmark_root))
+    for case in NONDRY_CASES:
+        checks.extend(check_nondry_case(case, benchmark_root))
+    return _build_report(benchmark_root, checks)
+
+
+def format_report_lines(report: Dict[str, Any], verbose: bool = False) -> List[str]:
+    lines = [f"runtime benchmark evidence: {report['passed']}/{report['total']} checks passed"]
+    for check in report.get("checks") or []:
+        if not isinstance(check, dict):
+            lines.append(f"[FAIL] malformed check - {check}")
+            continue
+        passed = check.get("passed") is True
+        if passed and not verbose:
+            continue
+        marker = "PASS" if passed else "FAIL"
+        name = check.get("name") or "unnamed check"
+        detail = check.get("detail") or ""
+        lines.append(f"[{marker}] {name} - {detail}")
+    return lines
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify typed runtime benchmark evidence")
     parser.add_argument(
@@ -603,16 +681,14 @@ def main() -> int:
         help="Benchmark cases root; defaults to PAPERFIT_BENCHMARK_ROOT or ./benchmark_cases",
     )
     parser.add_argument("--json", action="store_true", help="Print full JSON report")
+    parser.add_argument("--verbose", action="store_true", help="Print every check, including passing checks")
     args = parser.parse_args()
 
     report = run_checks(Path(args.benchmark_root).expanduser().resolve())
     if args.json:
         print(json.dumps(report, indent=2, ensure_ascii=False))
     else:
-        print(f"runtime benchmark evidence: {report['passed']}/{report['total']} checks passed")
-        for check in report["checks"]:
-            marker = "PASS" if check["passed"] else "FAIL"
-            print(f"[{marker}] {check['name']} - {check['detail']}")
+        print("\n".join(format_report_lines(report, verbose=args.verbose)))
     return 0 if report["failed"] == 0 else 1
 
 

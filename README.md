@@ -181,6 +181,8 @@ PaperFit 的推荐入口是自然语言，而不是记忆内部命令。
 | 长度调整 | `用 PaperFit 把正文压到 8 页，语义修改要最小` |
 | 状态查看 | `Use the paperfit agent to summarize the current layout status` |
 
+源文件修改默认受控：分析、渲染、诊断和修复计划可以自动执行；source-changing 任务默认 dry-run，只有显式 `--apply` 或宿主等价授权存在时才会执行 bounded source mutation。当前 V1 对 `--apply --max-rounds >1` 仍保持一轮 bounded candidate batch，并通过 status/reporting 暴露第二轮 readiness；不会自动扩大到第二轮源码修改。
+
 ## 工作流
 
 PaperFit 的闭环可以概括为：
@@ -191,7 +193,7 @@ LaTeX project
   -> render PDF pages
   -> diagnose visual defects
   -> plan source-level repairs
-  -> patch LaTeX safely
+  -> patch LaTeX safely when explicitly approved
   -> recompile and rerender
   -> gatekeeper acceptance
 ```
