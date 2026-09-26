@@ -12,6 +12,8 @@
 
 一致性缺陷通常不致命，但严重影响审稿人对论文专业度的第一印象。本技能的目标是建立并强制执行全篇统一的排版规范。
 
+Source-changing 边界：本技能默认只生成一致性 repair plan、风险和 approval 状态；只有显式 `--apply` 或宿主等价授权存在时才写回 `.tex`。多轮一致性修复必须同时显式启用 `--apply --max-rounds N`，并由 runtime 的 carry-forward、freshness、candidate gate、round lineage 和 gatekeeper 决策放行。
+
 ---
 
 ## 适用场景

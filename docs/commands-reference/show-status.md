@@ -11,7 +11,7 @@
 ## 行为
 
 1. **读取 runtime status**：
-   - 优先选择最近的适用 `RunResult`，如 `data/run_result_agent.json`、`data/run_result_full_vto_nondry.json`、`data/run_result_full_vto_dry_run.json` 或 `data/run_result_check_visual.json`。
+   - 优先选择最近的适用 `RunResult`，如 `data/run_result_agent.json`、`data/run_result_template_migration.json`、`data/run_result_full_vto_nondry.json`、`data/run_result_full_vto_dry_run.json` 或 `data/run_result_check_visual.json`。
    - 同时读取 `data/state.json` 作为 mutable projection。
    - 与 `paperfit status-view` / `paperfit status` 使用同一状态合同。
 2. **格式化输出**：
@@ -35,3 +35,4 @@
 
 - 不调用修复 Agent，不触发 compile/render/repair。
 - 读取 runtime status contract；CLI 等价入口是 `paperfit status`，机器可读入口是 `paperfit status-view`。
+- 需要可视化实时监控时，使用 `paperfit monitor` 启动只读的 PaperFit Observatory；它读取同一套 runtime artifacts，并以中文界面展示状态、视觉证据、修复决策与安全边界。

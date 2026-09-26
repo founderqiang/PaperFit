@@ -22,9 +22,10 @@
    - 浮动体尺寸与位置
    - 表格宽度与分页策略
    - 页数预算变化
-3. 自动执行源码层迁移，并在失败时保留可回滚路径。
+3. 默认生成源码层迁移计划、风险和 approval 状态；当前 typed runtime 尚未提供 runtime-owned template migration executor，因此显式 `--apply` 会被阻断并报告需要补齐迁移 executor。
 4. 自动进入视觉修复闭环，处理迁移带来的 E 类、B 类、A 类和 D 类问题。
 5. 在视觉通过前，持续报告迁移后的主要缺陷与剩余风险。
+6. 未来启用多轮迁移写回时，必须显式 `--apply --max-rounds N`，并由 approval carry-forward、artifact freshness、candidate approval scope gate、round lineage 和 gatekeeper `CONTINUE` 控制。
 
 ## 用户会得到什么
 
@@ -38,6 +39,7 @@
 - 模板迁移不是“只替换 `\documentclass`”
 - 迁移完成前，不得只凭编译成功就宣称完成
 - 长度调整、浮动体修复、表格重构都必须回到视觉复验
+- 当前 `--apply` 不得回退到旧的直接迁移脚本；必须等待 runtime-owned migration executor
 - 语义修改只能在排版手段用尽后受控触发
 
 ## 默认推断

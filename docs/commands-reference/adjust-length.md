@@ -23,6 +23,8 @@
    - 局部溢出修复
 3. 只有在这些排版手段用尽后，才允许进入受控语义修改。
 4. 每一轮长度调整后都重新编译并回到页图验收，确认不是“页数达标但视觉变差”。
+5. 默认只生成候选计划、风险和 approval 状态；只有显式 `--apply` 或宿主等价授权时才写回源码。
+6. 多轮源码写回必须显式 `--apply --max-rounds N`，并由 approval carry-forward、artifact freshness、candidate approval scope gate、round lineage 和 gatekeeper `CONTINUE` 放行。
 
 ## 用户会得到什么
 
@@ -36,6 +38,7 @@
 - 页数达标不等于任务完成，仍必须视觉复验
 - 默认先用排版手段，后用语义手段
 - 语义修改必须最小、受控、可审计
+- 语义修改属于高风险 source mutation；超出既有 approval scope 时必须重新获批
 - 包含 `Figure/Table/\ref{}` 锚点的导航句不得作为压字数候选
 
 ## 默认推断

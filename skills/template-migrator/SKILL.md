@@ -10,6 +10,8 @@
 
 该技能由 `code-surgeon-agent` 在 `/migrate-template` 命令触发时调用，负责将一篇论文从原模板平滑迁移至目标模板，并自动适配图表尺寸、页数预算和宏包兼容性。这是 PaperFit 最具差异化价值的能力，直接解决了科研工作者切换会议投稿时的真实痛点。
 
+Source-changing 边界：模板迁移默认先生成迁移计划、风险和 approval 状态。当前 typed runtime 尚未提供 runtime-owned template migration executor，因此显式 `--apply` 也必须阻断并报告需要补齐迁移 executor，不能回退到旧的直接源码迁移脚本。未来多轮迁移修复必须同时显式启用 `--apply --max-rounds N`，并由 runtime 的 carry-forward、freshness、candidate gate、round lineage 和 gatekeeper 决策控制。
+
 ## 适用场景
 
 | 缺陷 ID | 描述 | 优先级 | 是否允许语义修改 |

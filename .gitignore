@@ -9,6 +9,9 @@ data/evidence/
 data/logs/
 run/
 logs/
+output/playwright/
+output/repair_runs/
+.playwright-cli/
 
 # ============ 备份与归档 ============
 data/backups/

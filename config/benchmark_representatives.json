@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0",
+  "selection_mode": "one_per_conference",
+  "benchmark_root_hint": "benchmark_cases",
+  "description": "Curated representative benchmark set for PaperFit Observatory. Dynamic evidence quality is computed from artifacts at runtime.",
+  "representatives": [
+    {
+      "conference": "AAAI",
+      "case": "arXiv-2305.09480v5_runtime_copy_20260620",
+      "main_tex": "aaai24_antibody.tex",
+      "template": "AAAI2024",
+      "evidence_role": "runtime_control_copy",
+      "selection_reason": "Existing controlled runtime copy with visual evidence, source-apply evidence, rollback evidence, freshness, and B2 signals.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": true,
+      "notes": "Use as a controlled source-changing baseline; do not re-apply source changes from the monitor."
+    },
+    {
+      "conference": "ACMmm",
+      "case": "arXiv-2508.01427v2_nondry_copy_20260621",
+      "main_tex": "main.tex",
+      "template": "SIGIR2025",
+      "evidence_role": "nondry_source_change_control",
+      "selection_reason": "Retains nondry source-apply and rollback evidence from the benchmark checkpoint.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": false,
+      "notes": "Selection intentionally preserves rollback evidence for safety monitoring."
+    },
+    {
+      "conference": "CVPRICCV",
+      "case": "arXiv-2303.05725v4_runtime_copy_20260620",
+      "main_tex": "PaperForFinal_camera-ready.tex",
+      "template": "CVPR2024",
+      "evidence_role": "runtime_control_copy",
+      "selection_reason": "Existing controlled runtime copy with visual and B2 evidence.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": false,
+      "notes": "Representative for CVPR/ICCV-style two-column vision papers."
+    },
+    {
+      "conference": "ECCV",
+      "case": "arXiv-2403.09394v1_runtime_copy_20260621",
+      "main_tex": "main.tex",
+      "template": "ECCV2026",
+      "evidence_role": "runtime_control_copy",
+      "selection_reason": "Existing controlled runtime copy with visual and B2 evidence.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": false,
+      "notes": "Representative for ECCV-style vision paper layout."
+    },
+    {
+      "conference": "ICLR",
+      "case": "arXiv-2209.12643v4_runtime_copy_20260621",
+      "main_tex": "iclr2022_conference.tex",
+      "template": "ICLR2025",
+      "evidence_role": "runtime_control_copy",
+      "selection_reason": "Existing controlled runtime copy with visual and B2 evidence.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": false,
+      "notes": "Representative for single-column ML conference layout."
+    },
+    {
+      "conference": "ICML",
+      "case": "arXiv-2405.10812v2",
+      "main_tex": "main.tex",
+      "template": "ICML2024",
+      "evidence_role": "visual_only_baseline",
+      "selection_reason": "Fresh visual-only evidence was added to cover a previously blank conference slot.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": false,
+      "notes": "Ready for repair dry-run evaluation, not source apply."
+    },
+    {
+      "conference": "IEEE",
+      "case": "arXiv-2406.13200v2",
+      "main_tex": "main.tex",
+      "template": "IEEE",
+      "evidence_role": "visual_only_baseline",
+      "selection_reason": "Fresh visual-only evidence was added after excluding an earlier compile-failed IEEE attempt.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": false,
+      "notes": "Use this selected case instead of arXiv-2209.02646v10 for the representative slot."
+    },
+    {
+      "conference": "IJCAI",
+      "case": "arXiv-2408.02207v1",
+      "main_tex": "main.tex",
+      "template": null,
+      "evidence_role": "visual_only_baseline",
+      "selection_reason": "Fresh visual-only evidence was added after excluding an earlier graphics compile-failed IJCAI attempt.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": false,
+      "notes": "Template is intentionally null because the source task did not record a stable PaperFit template key."
+    },
+    {
+      "conference": "IJCV",
+      "case": "arXiv-2312.06660v3",
+      "main_tex": "main.tex",
+      "template": null,
+      "evidence_role": "visual_only_baseline",
+      "selection_reason": "Fresh visual-only evidence was added to cover a previously blank conference slot.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": false,
+      "notes": "Template is intentionally null because the source task did not record a stable PaperFit template key."
+    },
+    {
+      "conference": "NeurIPS",
+      "case": "arXiv-2203.10761v3",
+      "main_tex": "main.tex",
+      "template": "NeurIPS2025",
+      "evidence_role": "visual_only_baseline",
+      "selection_reason": "Fresh visual-only evidence was added to cover a previously blank conference slot.",
+      "allow_repair_dry_run": true,
+      "allow_source_apply": false,
+      "allow_controlled_copy_apply": false,
+      "notes": "Ready for repair dry-run evaluation, not source apply."
+    }
+  ],
+  "excluded_attempts": [
+    {
+      "conference": "IEEE",
+      "case": "arXiv-2209.02646v10",
+      "reason": "compile_failed",
+      "details": "The source hit an IEEE conditional/template mismatch under the observed task setup."
+    },
+    {
+      "conference": "IJCAI",
+      "case": "arXiv-2401.01085v2",
+      "reason": "compile_failed",
+      "details": "The source hit a graphics division-by-zero compile failure under the observed task setup."
+    }
+  ],
+  "fixtures": [
+    {
+      "name": "approval_gate",
+      "case": "high_risk_blocked_20260622",
+      "evidence_role": "safety_fixture",
+      "selection_reason": "High-risk approval gate fixture kept outside the representative conference count."
+    }
+  ]
+}

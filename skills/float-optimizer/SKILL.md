@@ -205,6 +205,7 @@ paperfit run scripts/extract_crossrefs.py main.tex --output data/crossrefs.json
 
 - 优先修复有 label/crossrefs 对齐的 B2 对象；没有可靠源码锚点时只报告候选，不做盲改。
 - 对 source-changing run，默认只生成 repair plan；只有显式 `--apply` 或宿主等价授权时才执行源码写回。
+- 多轮浮动体修复必须同时显式启用 `--apply --max-rounds N`，并由 runtime 的 approval carry-forward、artifact freshness、candidate approval scope gate、per-round lineage 和 gatekeeper `CONTINUE` 控制。
 - 不使用 `\resizebox`/`\scalebox` 作为宽度问题的默认修复；表格优先使用 `tabularx`、`table*` 或宽度感知列格式。
 
 ---

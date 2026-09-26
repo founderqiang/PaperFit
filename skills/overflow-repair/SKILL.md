@@ -10,6 +10,8 @@
 
 该技能由 `code-surgeon-agent` 调用，执行对 `.tex` 源码的精确修改，以消除或缓解溢出问题。所有修复遵循 **最小修改原则**，不改变学术内容。
 
+Source-changing 边界：在 PaperFit runtime 中，本技能默认只贡献 repair plan 和风险说明；只有显式 `--apply` 或宿主等价授权存在时才可写回源码。多轮写回必须同时显式启用 `--apply --max-rounds N`，并且每轮通过 approval carry-forward、artifact freshness、candidate approval scope gate 和 gatekeeper `CONTINUE` 后才能继续。
+
 ---
 
 ## 适用场景

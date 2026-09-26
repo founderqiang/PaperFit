@@ -52,6 +52,13 @@ PaperFit 会把自然语言请求自动映射到这些主任务之一：
 - 只有环境损坏、权限不足或目标本身不明确时，才向用户提出具体动作
 - 对用户的说明必须围绕结果、视觉问题、修复策略和风险，而不是脚本命令表
 
+## Source-Changing 安全边界
+
+- 分析、编译、页图渲染、视觉诊断和 repair plan 生成可以自动执行。
+- 修改 `.tex` 源码必须有显式 `--apply` 或宿主等价授权；没有授权时，只报告候选修复、risk、approval 状态和下一步建议。
+- 默认 `max_rounds=1`。多轮源码写回必须同时显式授权 `--apply --max-rounds N`。
+- 第二轮及以后必须由 runtime 的 `repair_loop_policy.second_round_apply_readiness`、approval carry-forward、artifact freshness、candidate approval scope gate 和 gatekeeper `CONTINUE` 共同放行。
+
 ## 验收原则
 
 - 编译成功不是最终完成标准

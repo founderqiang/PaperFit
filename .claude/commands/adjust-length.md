@@ -11,6 +11,8 @@
 
 编译、渲染、日志解析等统一见 `CLAUDE.md`「系统架构与运行时边界」：**`paperfit render`**、**`paperfit run scripts/…`**。
 
+长度调整属于 source-changing 任务。默认只生成诊断、候选计划和 approval 状态；只有用户显式授权 `--apply` 或等价自然语言许可时才允许写回 `.tex`。多轮源码写回必须同时显式授权 `--apply --max-rounds N`，并且第二轮及以后由 runtime 的 `repair_loop_policy.second_round_apply_readiness`、approval carry-forward、artifact freshness、candidate approval scope gate 和 gatekeeper `CONTINUE` 共同放行。
+
 ## 用法
 
 ```
@@ -31,6 +33,7 @@
 3. 若不满页：优先做版面与结构补强，必要时受控扩写结论/讨论
 4. 每轮都回到视觉验收，确认页数变化没有破坏整体版面
 5. 语义干预仅在排版手段用尽后使用
+6. 若未授权 `--apply`，输出 dry-run 修复计划、风险和 approval 状态，不执行源码写回
 
 ## 调度
 

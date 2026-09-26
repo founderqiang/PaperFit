@@ -257,7 +257,7 @@ def _check_repair_loop_policy(policy: Any, family: str, *, dry_run: bool) -> Lis
     checks.extend(
         [
             _check(policy.get("schema_version") == "1.0", f"{family}: repair loop policy schema", f"schema={policy.get('schema_version')}"),
-            _check(policy.get("execution_mode") == "report_only", f"{family}: repair loop policy report-only", f"mode={policy.get('execution_mode')}"),
+            _check(policy.get("execution_mode") == "report_only", f"{family}: historical dry-run repair loop policy report-only", f"mode={policy.get('execution_mode')}"),
             _check(policy.get("next_round_allowed") is False, f"{family}: repair loop does not auto-continue", f"next={policy.get('next_round_allowed')}"),
             _check(bool(policy.get("approval_scope")), f"{family}: repair loop approval scope present", f"scope={policy.get('approval_scope')}"),
             _check(isinstance(policy.get("mutation_surface"), list) and bool(policy.get("mutation_surface")), f"{family}: repair loop mutation surface present", str(policy.get("mutation_surface"))),
@@ -265,7 +265,7 @@ def _check_repair_loop_policy(policy: Any, family: str, *, dry_run: bool) -> Lis
             _check(carry_forward.get("status") == "pass", f"{family}: approval scope carry-forward passes", str(carry_forward)),
             _check(_lineage_has_action(lineage, "repair_plan_executor"), f"{family}: round lineage includes repair action", str(lineage)),
             _check(readiness.get("status") == "blocked", f"{family}: second-round apply readiness is blocked", str(readiness)),
-            _check((readiness.get("checks") or {}).get("runtime_execution_mode_can_auto_apply") is False, f"{family}: second-round auto apply remains disabled", str(readiness)),
+            _check((readiness.get("checks") or {}).get("runtime_execution_mode_can_auto_apply") is False, f"{family}: dry-run second-round auto apply remains disabled", str(readiness)),
         ]
     )
     if dry_run:
@@ -320,10 +320,10 @@ def check_approved_gate_case(case: Dict[str, str], benchmark_root: Path) -> List
                 _check(((gate.get("candidate_risks") or [{}])[0].get("risk") or {}).get("operation") == "layout_macros", f"{family}: selected candidate operation is scoped", str(gate.get("candidate_risks"))),
                 _check(int(repair_action.get("applied_count") or 0) > 0, f"{family}: approved gate applied bounded batch", f"applied={repair_action.get('applied_count')}"),
                 _check(_freshness_status(run_result) == "pass", f"{family}: approved gate freshness pass", f"freshness={_freshness_status(run_result)}"),
-                _check(policy.get("execution_mode") == "report_only", f"{family}: approved gate remains report-only", f"mode={policy.get('execution_mode')}"),
-                _check(policy.get("next_round_allowed") is False, f"{family}: approved gate does not auto-continue", f"next={policy.get('next_round_allowed')}"),
+                _check(policy.get("execution_mode") == "report_only", f"{family}: historical approved gate fixture remains report-only", f"mode={policy.get('execution_mode')}"),
+                _check(policy.get("next_round_allowed") is False, f"{family}: historical approved gate fixture does not auto-continue", f"next={policy.get('next_round_allowed')}"),
                 _check(readiness_checks.get("candidate_approval_scope_gate_pass") is True, f"{family}: readiness records gate pass", str(readiness_checks)),
-                _check(readiness_checks.get("runtime_execution_mode_can_auto_apply") is False, f"{family}: second-round auto apply disabled", str(readiness_checks)),
+                _check(readiness_checks.get("runtime_execution_mode_can_auto_apply") is False, f"{family}: historical fixture second-round auto apply disabled", str(readiness_checks)),
             ]
         )
     if status_view is not None:

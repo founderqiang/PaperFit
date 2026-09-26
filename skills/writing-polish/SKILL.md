@@ -6,6 +6,8 @@
 
 该技能不直接被 `orchestrator-agent` 调用，而是作为 `semantic-polish-agent` 的知识库和行为规范。所有语义级改写必须遵循本技能中定义的技巧和约束。
 
+Source-changing 边界：语义级改写是高风险 source mutation。默认只能生成候选改写、风险和 approval 状态；只有显式 `--apply` 或宿主等价授权存在时才允许写回。多轮语义改写必须同时显式启用 `--apply --max-rounds N`，并且每轮都通过 approval carry-forward、artifact freshness、candidate approval scope gate 和 gatekeeper `CONTINUE`；超出既有 approval scope 的语义修改必须重新获批。
+
 ## 适用场景
 
 | 触发缺陷 | 操作方向 | 允许的改写幅度 |

@@ -14,6 +14,8 @@
 
 空间利用问题的修复常常需要多轮迭代，因为局部调整会影响全局分页。因此，每次修改后必须重新编译并审查页图。
 
+Source-changing 边界：本技能默认只生成空间利用 repair plan、风险和 approval 状态；只有显式 `--apply` 或宿主等价授权存在时才写回源码。多轮写回必须同时显式启用 `--apply --max-rounds N`，并由 runtime 的 `second_round_apply_readiness`、approval carry-forward、artifact freshness、candidate approval scope gate 和 gatekeeper `CONTINUE` 控制。
+
 ---
 
 ## 适用场景

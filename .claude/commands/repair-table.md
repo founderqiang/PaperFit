@@ -11,6 +11,8 @@
 
 验证阶段在论文根目录使用 **`paperfit run scripts/compile.sh`** / **`paperfit render`**，勿假设项目内存在包级 `scripts/`。
 
+表格修复属于 source-changing 任务。默认只生成 repair plan、风险和 approval 状态；只有用户显式授权 `--apply` 或等价许可时才允许写回表格源码。多轮表格写回必须同时显式授权 `--apply --max-rounds N`，并由 runtime 的 approval carry-forward、artifact freshness、candidate approval scope gate、per-round lineage 和 gatekeeper `CONTINUE` 控制。
+
 ## 用法
 
 ```
@@ -30,6 +32,7 @@
 2. 分析表格溢出、一致性、列宽和可读性问题
 3. 重构列格式、调整列间距、必要时改用更合适的表格布局策略
 4. 重新编译并回到视觉验证
+5. 未授权 `--apply` 时只交付候选修复、风险说明和 approval 状态
 
 ## 调度
 

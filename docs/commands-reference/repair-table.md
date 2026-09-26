@@ -27,6 +27,8 @@
    - 溢出、过窄、过宽或错误浮动位置
 4. 自动选择合适的局部修复方式，例如宽度感知重构、列格式归一化、局部间距调整、位置参数修正。
 5. 自动重新编译并回到页图确认该表是否真正变好，而不是只看源码 diff。
+6. 默认只生成 repair plan、风险和 approval 状态；只有显式 `--apply` 或宿主等价授权时才写回表格源码。
+7. 多轮表格写回必须显式 `--apply --max-rounds N`，并由 approval carry-forward、artifact freshness、candidate approval scope gate、round lineage 和 gatekeeper `CONTINUE` 控制。
 
 ## 用户会得到什么
 
@@ -40,6 +42,7 @@
 - 不允许通过 `\resizebox`、`\scalebox` 暴力压缩表格
 - 不允许通过改变模板字体包或整体字体观感来“修复”表格
 - 不允许删除 caption、label、表格主体或引用锚点句
+- 未授权 `--apply` 时不得修改 `.tex`，只能报告候选修复与 approval 状态
 - 单表修复完成后，仍必须回到视觉闭环复验
 
 ## 默认推断
